@@ -8,6 +8,8 @@ import numpy as np
 import csv as csv
 import matplotlib.pyplot as plt
 
+from sklearn import tree
+
 
 ##################################Load the data to memory and return a Numpy Array#################################################
 def loader(file_name = 'train.csv'):
@@ -71,9 +73,16 @@ number_survived = len(alive_data)
 #Calculate the proportion of survivors, need to convert int to float to use fractions
 proportion_survived = np.float(number_survived) / np.float(number_passengers)
 
-#col_to_keep are the columns you want to keep in the data
-#col_to_change are columns you want to change the values from something to int
-def data_setter(data = data, header = header, unique_values = unique_values, col_to_keep = [0, 1, 2, 4, 5, 6, 7, 9, 11], col_to_change = [4, 11], col_essential = [0, 11]):
+
+#Input:
+# data = Data set to be worked on
+# header = The header for the given data set
+# unique values = Matrix with the unique values in each columnin the data set
+#col_to_keep = The columns you want to keep from the data
+#col_to_change = The columns you want to rescale the values (from something to int)
+#col_essential = Columns essential to the analizis, clean the rows with missing values in these columns
+#Output: The new data set and the proper header for it
+def data_setter(data = data, header = header, unique_values = unique_values, col_to_keep = [0, 1, 2, 4, 5, 6, 7, 9, 11], col_to_change = [4, 11], col_essential = range(12)):
  	#Get the lenght of the unique_values 
  	size = data.shape[1]
  	resize = range(size)
@@ -92,7 +101,7 @@ def data_setter(data = data, header = header, unique_values = unique_values, col
  	for i in col_to_change: 
  		for j in range(len(unique_values[0,i])):
  			data[:,i][data[:,i] == unique_values[0,i][j]] = j 	
- 	#Marks the empity ou zero elements and deletes the lines
+ 	#Marks the empity or zero elements and deletes the lines
  	for s in col_essential:
  		for t in range(data.shape[0]):
  			if data[t,s] == '' or data[t,s] == 0:
@@ -102,20 +111,31 @@ def data_setter(data = data, header = header, unique_values = unique_values, col
  	data = np.compress(resize, data, axis=1)	 	
 	return data, header_buff	
 
-data, header = data_setter(data, header, unique_values)
+data, header = data_setter(data, header, unique_values, [0, 1, 2, 4, 5, 6, 7, 9, 11], [4, 11], range(12))
 
+#Imput:
+#data = The data set to be splited
+#axis_answer = The axis for the label (expected answer)
+#axis_test = The axis to be used as parameters for the predictions
+#Returns the "answer" vector and the "test" matrix
+def data_spliter(data = data, axis_answer = [1], axis_test = [2,3,4,5,6,7,8]):
+	answer = np.take(data, axis_answer, axis = 1).astype(np.float)
+	test = np.take(data, axis_test, axis = 1)
+	return answer, test
 
+answer, test = data_spliter(data, [1], [2,3,4,5,6,7,8])
 
+# Input:
+# test = The data set to be tested
+# answer = The expected answer to train the predictor with
+# output: Return a Decision Tree Classifier object from sklearn
+def generate_prediction_tree(test = test, answer = answer):
+	predictor = tree.DecisionTreeClassifier()
+	predictor = predictor.fit(test.astype(float), answer)
+	return predictor
 
+predictor = generate_prediction_tree(test, answer)
 
-
-
-
-
-
-
-
-print("The Bug: Is dead")
 
 # Junk/Draft Code
 
@@ -147,3 +167,4 @@ print("The Bug: Is dead")
 # #men_data = data[data[:,4] != 'female']
 # women_data = data[data[:,4] == unique_values[0,4][0]]
 # men_data = data[data[:,4] == unique_values[0,4][1]]
+
