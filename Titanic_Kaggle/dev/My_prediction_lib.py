@@ -2,7 +2,7 @@
 import os
 os.system('clear')
 
-import pandas
+import pandas as pd 
 import numpy as np 
 import csv as csv
 
@@ -11,45 +11,39 @@ from sklearn.metrics import accuracy_score
 from sklearn.cross_validation import train_test_split
 
 
+#######Calculate the precision with which predictor can predict a given label (col_answer) given the variables (col_variables)#######
+def calculate_precision(data, header, col_answer, col_variables, return_flag = 0):
+	#Make sure the answer will end in column 0 in the data_buff
+	buff = col_answer + col_variables
+	data_buff, header_buff = data_setter(data, header, buff, buff, buff)
+	answer, variables = data_spliter(data_buff, [0], range(1,len(buff)))
+	x_train, x_test, y_train, y_test = train_test_split(variables, answer,test_size = 0.5)
+	predictor = generate_prediction_tree(x_train, y_train)
+	predictor = predictor.predict(x_test)
+	accuracy = accuracy_score(y_test, predictor)
+	print "Data used: %s" % header_buff 
+	print "Predictor accuracy: %f" % accuracy
+	if return_flag == 1:
+		return  answer.A1, variables.A1, accuracy
 
-
-##################################Load the data to memory and return a Numpy Matrix#################################################
-def loader(file_name = 'train.csv'):
-	#Set the file ID for the csv, assing the Header and initialyze "data[]"
-	csv_file_id = csv.reader(open(file_name, 'rb'))
-	header = csv_file_id.next()
-	data = []
-	#Go through the csv and stores the data in memory
-	for col in csv_file_id:
-		data.append(col[0:])
-	#Convert tipe("List") to type("np.Array")
-	data = np.matrix(data)
-	return data, header
-
-
-########################Find all unique values for each variable and return an array with them#####################################
-# Output Format:
-# Header[i]: ['PassengerId', 'Survived', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked']
-# Output[i]: [      0      ,      1    ,     2   ,    3  ,   4  ,   5  ,    6   ,    7   ,     8   ,    9  ,    10  ,      11   ]
-def finduniques(header, data):
-	output = []
-	for i in range(len(header)):
-		#print("Unique {}: {}").format(header[i] , np.unique(data[0::,i]))
-		output.append(np.unique(data[:,i].A.astype(type(data[0,i]))))
-	output = np.matrix(output)
-	return output
 
 ##################Filter and reshape the data set matrix, used to treat the data before using it################################### 
 #Input:
 # data = Data set to be worked on
 # header = The header for the given data set
-# unique values = Matrix with the unique values in each columnin the data set
 #col_to_keep = The columns you want to keep from the data
 #col_to_change = The columns you want to rescale the values (from something to int)
 #col_essential = Columns essential to the analizis, clean the rows with missing values in these columns
 #Output: The new data set and the proper header for it
-def data_setter(data , header , unique_values , col_to_keep, col_to_change, col_essential):
+def data_setter(data , header, col_to_keep = [], col_to_change = [], col_essential = []):
  	#Get the lenght of the unique_values 
+ 	if col_to_keep == []:
+ 		col_to_keep = range(len(header))
+  	if col_to_change == []:
+ 		col_to_change = col_to_keep
+ 	if col_essential == []:
+ 		col_essential = col_to_keep
+ 	unique_values = finduniques(header, data)
  	size = data.shape[1]
  	resize = range(size)
  	to_del = []
@@ -77,6 +71,7 @@ def data_setter(data , header , unique_values , col_to_keep, col_to_change, col_
  	data = np.compress(resize, data, axis=1)	 	
 	return data, header_buff	
 
+
 ###############################################Split the data to be used in the prediction#########################################
 #Imput:
 #data = The data set to be splited
@@ -85,8 +80,21 @@ def data_setter(data , header , unique_values , col_to_keep, col_to_change, col_
 #Returns the "answer" vector and the "variables" matrix
 def data_spliter(data, axis_answer, axis_variables):
 	answer = np.take(data, axis_answer, axis = 1).astype(np.float)
-	variables = np.take(data, axis_variables, axis = 1)
+	variables = np.take(data, axis_variables, axis = 1).astype(np.float)
 	return answer, variables
+
+
+########################Find all unique values for each variable and return an array with them#####################################
+# Output Format:
+# Header[i]: ['PassengerId', 'Survived', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked']
+# Output[i]: [      0      ,      1    ,     2   ,    3  ,   4  ,   5  ,    6   ,    7   ,     8   ,    9  ,    10  ,      11   ]
+def finduniques(header, data):
+	output = []
+	for i in range(len(header)):
+		#print("Unique {}: {}").format(header[i] , np.unique(data[0::,i]))
+		output.append(np.unique(data[:,i].A.astype(type(data[0,i]))))
+	output = np.matrix(output)
+	return output
 
 
 ##########################################Generate a Prediction Tree Object with the given data###################################
@@ -100,39 +108,55 @@ def generate_prediction_tree(variables, answer):
 	return predictor
 
 
+##################################Load the data to memory and return a Numpy Matrix#################################################
+# file_name = The name of the file containing the train data
+def loader(file_name = 'train.csv', clear_data_flag = 0):
+	#Set the file ID for the csv, assing the Header and initialyze "data[]"
+	csv_file_id = csv.reader(open(file_name, 'rb'))
+	header = csv_file_id.next()
+	data = []
+	#Go through the csv and stores the data in memory
+	for col in csv_file_id:
+		data.append(col[0:])
+	#Convert tipe("List") to type("np.Array")
+	data = np.matrix(data)
+	if clear_data_flag == 1:
+		data, header = data_setter(data, header)
+	return data, header
+
 
 ###########################################Create the predictor to be used for the test data ####################################
 def make_predictor():
 	data, header = loader(file_name)
 	unique_values = finduniques(header, data)
-	data, header = data_setter(data, header, unique_values, col_to_keep, col_to_change, col_essential)
+	data, header = data_setter(data, header)
 	answer, variables = data_spliter(data, axis_answer, axis_variables)
 	predictor = generate_prediction_tree(variables, answer)
 	return predictor
 
 
-########################################Initialyze the data from the file#########################################################
+# ########################################Initialyze the data from the file#########################################################
 
-#Data format:Matrix[rol,col]
-#rol = Passager info
-#col = Characteristic (i.e Sex or Name)
-data_train, header_train = mplib.loader('train.csv')
-
-
-############################################Load the Unique values into the memory#################################################
-# access using unique_values[0,Variable][Unique_Itens]
-unique_values_train = mplib.finduniques(header_train,data_train)
+# #Data format:Matrix[rol,col]
+# #rol = Passager info
+# #col = Characteristic (i.e Sex or Name)
+# data_train, header_train = mplib.loader('train.csv')
 
 
-data_train, header_train = mplib.data_setter(data_train, header_train, unique_values_train, [0, 1, 2, 4, 5, 6, 7, 9, 11], [4, 11], range(data_train.shape[1]))
+# ############################################Load the Unique values into the memory#################################################
+# # access using unique_values[0,Variable][Unique_Itens]
+# unique_values_train = mplib.finduniques(header_train,data_train)
 
 
-answer_train, variables_train = mplib.data_spliter(data_train, [1], [2,3,4,5,6,7,8])
+# data_train, header_train = mplib.data_setter(data_train, header_train, unique_values_train, [0, 1, 2, 4, 5, 6, 7, 9, 11], [4, 11], range(data_train.shape[1]))
 
-x_train, x_test, y_train, y_test = train_test_split(variables_train, answer_train,test_size = 0.5)
 
-predictor = mplib.generate_prediction_tree(x_train, y_train)
+# answer_train, variables_train = mplib.data_spliter(data_train, [1], [2,3,4,5,6,7,8])
 
-predictor = predictor.predict(x_test)
+# x_train, x_test, y_train, y_test = train_test_split(variables_train, answer_train,test_size = 0.5)
 
-print accuracy_score(y_test, predictor)
+# predictor = mplib.generate_prediction_tree(x_train, y_train)
+
+# predictor = predictor.predict(x_test)
+
+# print accuracy_score(y_test, predictor)
